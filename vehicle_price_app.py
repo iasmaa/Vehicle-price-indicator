@@ -16,9 +16,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚗 مؤشر أسعار المركبات التفاعلي")
-st.caption("نسخة تجريبية للبروتوتايب - التحليل يتم تلقائياً وفورياً بناءً على البيانات المتوفرة")
+st.caption("نسخة تجريبية للبروتوتايب - أدخل البيانات ثم اضغط على زر التقييم")
 
-# قراءة الملف مع تفعيل الكاش لسرعة التحميل والتحديث
+# قراءة الملف مع تفعيل الكاش لسرعة التحميل
 @st.cache_data
 def load_data():
     df = pd.read_excel("Vehicle_Fair_Price_POC.xlsx")
@@ -56,53 +56,56 @@ try:
     with col7:
         selected_owners = st.number_input("عدد الملاك السابقين", min_value=1, max_value=10, value=1)
     with col8:
-        # تغيير القيمة هنا سيحدث الحساب تلقائياً تحت في نفس اللحظة
         proposed_price = st.number_input("السعر المقترح من قبلك (ريال سعودي)", min_value=0, value=30000, step=1000)
 
     st.markdown("---")
 
-    # عملية الفلترة والحساب التلقائي (تحديث فوري دون انتظار زر)
-    filtered_df = df[
-        (df['العلامة التجارية'] == selected_brand) & 
-        (df['الموديل'] == selected_model) & 
-        (df['سنة الصنع'] == selected_year)
-    ]
-    
-    if not filtered_df.empty:
-        base_avg = filtered_df['سعر المبايعة الفعلي'].mean()
-        
-        # موازنة الفئة والممشى والملاك
-        trim_df = filtered_df[filtered_df['الفئة'] == selected_trim]
-        if not trim_df.empty:
-            base_avg = trim_df['سعر المبايعة الفعلي'].mean()
-            
-        avg_mileage = filtered_df['العداد / الممشى'].mean() if 'العداد / الممشى' in filtered_df.columns else 80000
-        if selected_mileage < avg_mileage:
-            base_avg *= 1.05
-        elif selected_mileage > avg_mileage:
-            base_avg *= 0.95
-            
-        if selected_owners > 2:
-            base_avg *= 0.97
+    # زر حساب التقييم السعري
+    submit_button = st.button("احسب التقييم السعري")
 
-        # تحديد النطاق العادل العريض
-        low_bound = round(base_avg * 0.92)
-        high_bound = round(base_avg * 1.08)
+    # تنفيذ الحساب فقط عند الضغط على الزر
+    if submit_button:
+        filtered_df = df[
+            (df['العلامة التجارية'] == selected_brand) & 
+            (df['الموديل'] == selected_model) & 
+            (df['سنة الصنع'] == selected_year)
+        ]
         
-        st.subheader("📊 نتيجة التحليل الفوري:")
-        st.info(f"📍 نطاق السعر العادل لمركبتك هو بين **{low_bound:,} ريال** و **{high_bound:,} ريال**.")
-        
-        if low_bound <= proposed_price <= high_bound:
-            st.success("✅ السعر المقترح عادل وضمن نطاق السوق الحقيقي.")
-        elif proposed_price > high_bound:
-            diff_pct = round(((proposed_price - base_avg) / base_avg) * 100, 2)
-            st.warning(f"⚠️ السعر المقترح أعلى من سعر السوق العادل بنسبة {diff_pct}%.")
-        else:
-            diff_pct = round(((base_avg - proposed_price) / base_avg) * 100, 2)
-            st.error(f"📉 السعر المقترح أقل من سعر السوق العادل بنسبة {diff_pct}%.")
+        if not filtered_df.empty:
+            base_avg = filtered_df['سعر المبايعة الفعلي'].mean()
             
-    else:
-        st.warning("⚠️ لا توجد بيانات كافية لهذه المركبة بالتحديد في الملف المرفق، يرجى تجربة خيارات أخرى.")
+            # موازنة الفئة والممشى والملاك
+            trim_df = filtered_df[filtered_df['الفئة'] == selected_trim]
+            if not trim_df.empty:
+                base_avg = trim_df['سعر المبايعة الفعلي'].mean()
+                
+            avg_mileage = filtered_df['العداد / الممشى'].mean() if 'العداد / الممشى' in filtered_df.columns else 80000
+            if selected_mileage < avg_mileage:
+                base_avg *= 1.05
+            elif selected_mileage > avg_mileage:
+                base_avg *= 0.95
+                
+            if selected_owners > 2:
+                base_avg *= 0.97
+
+            # تحديد النطاق العادل
+            low_bound = round(base_avg * 0.92)
+            high_bound = round(base_avg * 1.08)
+            
+            st.subheader("📊 نتيجة التحليل:")
+            st.info(f"📍 نطاق السعر العادل لمركبتك هو بين **{low_bound:,} ريال** و **{high_bound:,} ريال**.")
+            
+            if low_bound <= proposed_price <= high_bound:
+                st.success("✅ السعر المقترح عادل وضمن نطاق السوق الحقيقي.")
+            elif proposed_price > high_bound:
+                diff_pct = round(((proposed_price - base_avg) / base_avg) * 100, 2)
+                st.warning(f"⚠️ السعر المقترح أعلى من سعر السوق العادل بنسبة {diff_pct}%.")
+            else:
+                diff_pct = round(((base_avg - proposed_price) / base_avg) * 100, 2)
+                st.error(f"📉 السعر المقترح أقل من سعر السوق العادل بنسبة {diff_pct}%.")
+                
+        else:
+            st.warning("⚠️ لا توجد بيانات كافية لهذه المركبة بالتحديد في الملف المرفق، يرجى تجربة خيارات أخرى.")
 
 except Exception as e:
     st.error(f"حدث خطأ أثناء تحميل البيانات أو الحساب: {e}")
